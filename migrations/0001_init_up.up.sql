@@ -1,0 +1,6 @@
+CREATE TABLE IF NOT EXISTS money
+(
+    id SERIAL PRIMARY KEY,
+    userID TEXT NOT NULL UNIQUE,
+    userMoney FLOAT
+)
