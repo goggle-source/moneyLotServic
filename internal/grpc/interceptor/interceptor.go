@@ -59,9 +59,11 @@ func AuthInterceptor(ctx context.Context, req any, info *grpc.UnaryServerInfo, h
 
 	name := md.Get(ClientServicName)
 
-	if CheckingServicForAccessWithoutJWT(name[0]) {
+	if len(name) > 0 {
+		if CheckingServicForAccessWithoutJWT(name[0]) {
 
-		return handler(ctx, req)
+			return handler(ctx, req)
+		}
 	}
 
 	tokens := md.Get("authorization")
