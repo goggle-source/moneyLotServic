@@ -20,7 +20,8 @@ import (
 )
 
 const (
-	userID = "userID"
+	userID           = "userID"
+	ClientServicName = "client-servic-name"
 )
 
 var (
@@ -56,7 +57,10 @@ func AuthInterceptor(ctx context.Context, req any, info *grpc.UnaryServerInfo, h
 		return nil, status.Error(codes.Unauthenticated, "missing metadata")
 	}
 
-	if IsPublicMethod(info.FullMethod) {
+	name := md.Get(ClientServicName)
+
+	if CheckingServicForAccessWithoutJWT(name[0]) {
+
 		return handler(ctx, req)
 	}
 
@@ -86,12 +90,13 @@ func AuthInterceptor(ctx context.Context, req any, info *grpc.UnaryServerInfo, h
 	return handler(ctx, req)
 }
 
-func IsPublicMethod(fullMethod string) bool {
-	publicMethod := map[string]bool{
-		"/service.Auth": true,
+func CheckingServicForAccessWithoutJWT(name string) bool {
+	arr := map[string]bool{
+		"productLotServic": true,
+		"auctionLotServic": true,
 	}
 
-	return publicMethod[fullMethod]
+	return arr[name]
 }
 
 func GetSecretKey() {
