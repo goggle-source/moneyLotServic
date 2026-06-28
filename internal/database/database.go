@@ -109,6 +109,18 @@ func (d *DB) ReduceMoneyToUser(ctx context.Context, userID string, money float64
 	}
 
 	defer tx.Rollback()
+	var userMoney float64
+	err = d.DB.QueryRowContext(ctx, "SELECT userMoney FROM money WHERE userID = $1", userID).Scan(&userMoney)
+
+	if err != nil {
+		log.Error("error get userMoney", logger.Err(err))
+		return false, ValidationErrorPostgresql(err)
+	}
+
+	if userMoney < money {
+		log.Error("lack of funds")
+		return false, ErrLackOfFunds
+	}
 
 	res, err := tx.ExecContext(ctx, `
 	UPDATE money SET userMoney = userMoney - $1
@@ -116,6 +128,9 @@ func (d *DB) ReduceMoneyToUser(ctx context.Context, userID string, money float64
 		money, userID)
 
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return false, fmt.Errorf("%s:%w", op, ErrNotFound)
+		}
 		log.Error("error update userMoney", logger.Err(err))
 		return false, ValidationErrorPostgresql(err)
 	}
@@ -128,18 +143,6 @@ func (d *DB) ReduceMoneyToUser(ctx context.Context, userID string, money float64
 	}
 
 	if rowsAffected == 0 {
-		log.Error("error update userMoney", slog.Int("rows", int(rowsAffected)))
-		isCheckUser, err := d.CheckingIsUser(ctx, userID, tx)
-		if err != nil {
-			log.Error("error check user in database", logger.Err(err))
-			return false, ValidationErrorPostgresql(err)
-		}
-
-		if !isCheckUser {
-			log.Info("user is not found")
-			return false, ErrNotFound
-		}
-
 		return false, ErrLackOfFunds
 	}
 

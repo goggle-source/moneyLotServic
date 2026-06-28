@@ -7,6 +7,8 @@ import (
 	"github.com/goggle-source/MoneyLotProto/gen/go/money"
 	"github.com/goggle-source/moneyLotServic/internal/lib/logger"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/anypb"
 )
 
@@ -58,7 +60,13 @@ func (g *GrpcServic) ReduceMoney(ctx context.Context, in *money.ReduceMoneyReque
 
 	log.Info("start reduceMoney")
 
-	ok, err := g.BS.ReduceMoneyToUser(ctx, ctx.Value(userID).(string), float64(in.GetMoney()))
+	userID := ctx.Value(userID)
+	if userID.(string) == "" {
+		log.Error("userID is not found")
+		return &money.ReduceMoneyResponse{}, status.Error(codes.Internal, "failed")
+	}
+
+	ok, err := g.BS.ReduceMoneyToUser(ctx, userID.(string), float64(in.GetMoney()))
 	if err != nil {
 		log.Error("error reduceMoneyToUser", logger.Err(err))
 		return &money.ReduceMoneyResponse{}, ValidationErrorsToBusiness(err)

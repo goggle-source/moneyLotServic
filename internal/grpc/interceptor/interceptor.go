@@ -61,7 +61,8 @@ func AuthInterceptor(ctx context.Context, req any, info *grpc.UnaryServerInfo, h
 
 	if len(name) > 0 {
 		if CheckingServicForAccessWithoutJWT(name[0]) {
-
+			userIDValue := md.Get(userID)
+			ctx := context.WithValue(ctx, userID, userIDValue[0])
 			return handler(ctx, req)
 		}
 	}
