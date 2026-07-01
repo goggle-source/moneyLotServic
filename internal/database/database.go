@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/goggle-source/moneyLotServic/internal/config"
+	"github.com/goggle-source/moneyLotServic/internal/domain"
 	"github.com/goggle-source/moneyLotServic/internal/models"
 )
 
@@ -46,7 +47,7 @@ func (d *DB) AddMoneyToUser(ctx context.Context, userID string, money float64) (
 
 	tx, err := d.DB.BeginTx(ctx, &sql.TxOptions{})
 	if err != nil {
-		return false, ValidationErrorPostgresql(err)
+		return false, fmt.Errorf("%s:%w", op, err)
 	}
 
 	defer tx.Rollback()
@@ -59,20 +60,21 @@ func (d *DB) AddMoneyToUser(ctx context.Context, userID string, money float64) (
 		userID, money)
 
 	if err != nil {
-		return false, ValidationErrorPostgresql(err)
+		return false, fmt.Errorf("%s:%w", op, err)
 	}
 
 	rowsAffected, err := res.RowsAffected()
 
 	if err != nil {
+		return false, fmt.Errorf("%s:%w", op, err)
 	}
 
 	if rowsAffected == 0 {
-		return false, ValidationErrorPostgresql(err)
+		return false, fmt.Errorf("%s:%w", op, domain.ErrAddMoney)
 	}
 
 	if err = tx.Commit(); err != nil {
-		return false, ValidationErrorPostgresql(err)
+		return false, fmt.Errorf("%s:%w", op, err)
 	}
 
 	return true, nil
@@ -83,7 +85,7 @@ func (d *DB) ReduceMoneyToUser(ctx context.Context, userID string, money float64
 
 	tx, err := d.DB.BeginTx(ctx, &sql.TxOptions{})
 	if err != nil {
-		return false, ValidationErrorPostgresql(err)
+		return false, fmt.Errorf("%s:%w", op, err)
 	}
 
 	defer tx.Rollback()
@@ -91,11 +93,14 @@ func (d *DB) ReduceMoneyToUser(ctx context.Context, userID string, money float64
 	err = d.DB.QueryRowContext(ctx, "SELECT userMoney FROM money WHERE userID = $1", userID).Scan(&userMoney)
 
 	if err != nil {
-		return false, ValidationErrorPostgresql(err)
+		if errors.Is(err, sql.ErrNoRows) {
+			return false, fmt.Errorf("%s:%w", op, domain.ErrNotFound)
+		}
+		return false, fmt.Errorf("%s:%w", op, err)
 	}
 
 	if userMoney < money {
-		return false, ErrLackOfFunds
+		return false, fmt.Errorf("%s:%w", op, domain.ErrLackOfFunds)
 	}
 
 	res, err := tx.ExecContext(ctx, `
@@ -105,23 +110,23 @@ func (d *DB) ReduceMoneyToUser(ctx context.Context, userID string, money float64
 
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return false, fmt.Errorf("%s:%w", op, ErrNotFound)
+			return false, fmt.Errorf("%s:%w", op, domain.ErrNotFound)
 		}
-		return false, ValidationErrorPostgresql(err)
+		return false, fmt.Errorf("%s:%w", op, err)
 	}
 
 	rowsAffected, err := res.RowsAffected()
 
 	if err != nil {
-		return false, ErrDatabase
+		return false, fmt.Errorf("%s:%w", op, err)
 	}
 
 	if rowsAffected == 0 {
-		return false, ErrLackOfFunds
+		return false, fmt.Errorf("%s:%w", op, domain.ErrReduceMoney)
 	}
 
 	if err = tx.Commit(); err != nil {
-		return false, ValidationErrorPostgresql(err)
+		return false, fmt.Errorf("%s:%w", op, err)
 	}
 
 	return true, nil
@@ -139,7 +144,7 @@ func (d *DB) GetMoneyToUser(ctx context.Context, userID string) (float64, error)
 		if errors.Is(err, sql.ErrNoRows) {
 			return 0, nil
 		}
-		return 0, ValidationErrorPostgresql(err)
+		return 0, fmt.Errorf("%s:%w", op, err)
 	}
 
 	return allMoney, nil
@@ -165,7 +170,7 @@ func (d *DB) CheckingIsUser(ctx context.Context, userID string, tx *sql.Tx) (boo
 
 	err := tx.QueryRowContext(ctx, "SELECT EXISTS(SELECT 1 FROM money WHERE userID = $1)", userID).Scan(&isValueUser)
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("%s:%w", op, err)
 	}
 
 	return isValueUser, nil

@@ -2,14 +2,14 @@ package business
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"runtime"
 
+	"github.com/goggle-source/moneyLotServic/internal/domain"
 	"github.com/goggle-source/moneyLotServic/internal/lib/logger"
 	"github.com/goggle-source/moneyLotServic/internal/models"
 )
-
-// нужно будет потом добавить во все методы проверку userID через метод authServic
 
 type Database interface {
 	AddMoneyToUser(ctx context.Context, userID string, money float64) (bool, error)
@@ -39,13 +39,13 @@ func (b *BusinessServic) AddMoneyToUser(ctx context.Context, userID string, mone
 
 	if money < 0 {
 		log.Error("error small deposit")
-		return false, ErrSmallDeposit
+		return false, fmt.Errorf("it's money less 0: %s:%w", op, domain.ErrSmalDeposit)
 	}
 
 	ok, err := b.DB.AddMoneyToUser(ctx, userID, money)
 	if err != nil {
 		log.Error("error addMoney", logger.Err(err))
-		return false, ValidationErrorsToRepositoryPostgresql(err)
+		return false, fmt.Errorf("err add money in database layer: %s:%w", op, err)
 	}
 	log.Info("success AddMoneyToUser")
 
@@ -61,13 +61,13 @@ func (b *BusinessServic) ReduceMoneyToUser(ctx context.Context, userID string, m
 
 	if money < 0 {
 		log.Error("error small deposit")
-		return false, ErrSmallDeposit
+		return false, fmt.Errorf("it's money less 0: %s:%w", op, domain.ErrSmalDeposit)
 	}
 
 	ok, err := b.DB.ReduceMoneyToUser(ctx, userID, money)
 	if err != nil {
 		log.Error("error ReduceMoneyToUser", logger.Err(err))
-		return false, ValidationErrorsToRepositoryPostgresql(err)
+		return false, fmt.Errorf("err reduce money in database layer: %s:%w", op, err)
 	}
 
 	return ok, nil
@@ -83,7 +83,7 @@ func (b *BusinessServic) GetMoneyToUser(ctx context.Context, userID string) (flo
 	AllMoney, err := b.DB.GetMoneyToUser(ctx, userID)
 	if err != nil {
 		log.Error("error GetMoneyToUser", logger.Err(err))
-		return 0, ValidationErrorsToRepositoryPostgresql(err)
+		return 0, fmt.Errorf("err get money in database layer: %s:%w", op, err)
 	}
 
 	return AllMoney, nil
@@ -108,7 +108,7 @@ func (b *BusinessServic) Health(ctx context.Context) (map[string]any, error) {
 	infoDB, err := b.DB.HealthCheack(ctx)
 	if err != nil {
 		log.Error("error get info DB", logger.Err(err))
-		return result, ValidationErrorsToRepositoryPostgresql(err)
+		return result, fmt.Errorf("Err health check in database: %s:%w", op, err)
 	}
 
 	result["infoDB"] = infoDB

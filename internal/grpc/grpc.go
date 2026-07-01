@@ -96,6 +96,7 @@ func (g *GrpcServic) GetMoneyUser(ctx context.Context, in *money.GetMoneyUserReq
 	}, nil
 }
 
+// don' work it's correct
 func (g *GrpcServic) Health(ctx context.Context, in *money.HealthProductRequest) (*money.HealthProductResponse, error) {
 	const op = "grpc.Health"
 
