@@ -21,5 +21,8 @@ func ValidationErrorsToBusiness(err error) error {
 	if errors.Is(err, domain.ErrNotFound) {
 		return status.Error(codes.NotFound, "user not found")
 	}
-	return err
+	if errors.Is(err, domain.ErrReduceMoney) {
+		return status.Error(codes.InvalidArgument, "error reduce money")
+	}
+	return status.Error(codes.Internal, "internal error")
 }
