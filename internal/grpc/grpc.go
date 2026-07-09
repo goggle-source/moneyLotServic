@@ -35,11 +35,9 @@ func Register(grpcServer *grpc.Server, bs BS, log *slog.Logger) {
 
 func (g *GrpcServic) AddMoney(ctx context.Context, in *money.AddMoneyRequest) (*money.AddMoneyResponse, error) {
 	const op = "grpc.AddMoney"
-	log := g.log.With(slog.String("op", op))
-
-	log.Info("start addMoney")
-
-	log.Debug("data", slog.Float64("money", in.GetMoney()))
+	log := g.log.With(slog.String("op", op),
+		slog.String("userID", ctx.Value(userID).(string)),
+		slog.Float64("money", in.GetMoney()))
 
 	ok, err := g.BS.AddMoneyToUser(ctx, ctx.Value(userID).(string), in.GetMoney())
 	if err != nil {
@@ -47,7 +45,6 @@ func (g *GrpcServic) AddMoney(ctx context.Context, in *money.AddMoneyRequest) (*
 		return &money.AddMoneyResponse{}, ValidationErrorsToBusiness(err)
 	}
 
-	log.Info("success add money")
 	return &money.AddMoneyResponse{
 		Result: ok,
 	}, nil
@@ -56,9 +53,7 @@ func (g *GrpcServic) AddMoney(ctx context.Context, in *money.AddMoneyRequest) (*
 func (g *GrpcServic) ReduceMoney(ctx context.Context, in *money.ReduceMoneyRequest) (*money.ReduceMoneyResponse, error) {
 	const op = "grpc.ReduceMoney"
 
-	log := g.log.With(slog.String("op", op))
-
-	log.Info("start reduceMoney")
+	log := g.log.With(slog.String("op", op), slog.Float64("money", in.GetMoney()))
 
 	userID := ctx.Value(userID)
 	if userID.(string) == "" {
@@ -66,7 +61,9 @@ func (g *GrpcServic) ReduceMoney(ctx context.Context, in *money.ReduceMoneyReque
 		return &money.ReduceMoneyResponse{}, status.Error(codes.Internal, "failed")
 	}
 
-	ok, err := g.BS.ReduceMoneyToUser(ctx, userID.(string), float64(in.GetMoney()))
+	log = log.With(slog.String("userID", userID.(string)))
+
+	ok, err := g.BS.ReduceMoneyToUser(ctx, userID.(string), in.GetMoney())
 	if err != nil {
 		log.Error("error reduceMoneyToUser", logger.Err(err))
 		return &money.ReduceMoneyResponse{}, ValidationErrorsToBusiness(err)
@@ -80,9 +77,7 @@ func (g *GrpcServic) ReduceMoney(ctx context.Context, in *money.ReduceMoneyReque
 func (g *GrpcServic) GetMoneyUser(ctx context.Context, in *money.GetMoneyUserRequest) (*money.GetMoneyUserResponse, error) {
 	const op = "grpc.GetMoney"
 
-	log := g.log.With(slog.String("op", op))
-
-	log.Info("start getMoneyUser")
+	log := g.log.With(slog.String("op", op), slog.String("userID", ctx.Value(userID).(string)))
 
 	Allmoney, err := g.BS.GetMoneyToUser(ctx, ctx.Value(userID).(string))
 	if err != nil {
@@ -90,18 +85,16 @@ func (g *GrpcServic) GetMoneyUser(ctx context.Context, in *money.GetMoneyUserReq
 		return &money.GetMoneyUserResponse{}, ValidationErrorsToBusiness(err)
 	}
 
-	log.Info("success getMoneyUser", slog.Float64("count", Allmoney))
 	return &money.GetMoneyUserResponse{
 		AllMoney: Allmoney,
 	}, nil
 }
 
+// don' work it's correct
 func (g *GrpcServic) Health(ctx context.Context, in *money.HealthProductRequest) (*money.HealthProductResponse, error) {
 	const op = "grpc.Health"
 
 	log := g.log.With(slog.String("op", op))
-
-	log.Info("start healthCheack")
 
 	info, err := g.BS.Health(ctx)
 	if err != nil {
@@ -114,7 +107,6 @@ func (g *GrpcServic) Health(ctx context.Context, in *money.HealthProductRequest)
 	for key, value := range info {
 		result[key] = value.(*anypb.Any)
 	}
-	log.Info("success healthCheak")
 
 	return &money.HealthProductResponse{Info: result}, nil
 }
